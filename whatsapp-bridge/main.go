@@ -775,7 +775,11 @@ func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore, port 
 	})
 
 	// Start the server
-	serverAddr := fmt.Sprintf(":%d", port)
+	portEnv := os.Getenv("PORT")
+	if portEnv == "" {
+		portEnv = "10000" // default fallback
+	}
+	serverAddr := fmt.Sprintf("0.0.0.0:%s", portEnv)
 	fmt.Printf("Starting REST API server on %s...\n", serverAddr)
 
 	// Run server in a goroutine so it doesn't block
