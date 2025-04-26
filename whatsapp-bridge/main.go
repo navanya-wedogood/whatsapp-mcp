@@ -778,6 +778,53 @@ func startRESTServer(client *whatsmeow.Client, messageStore *MessageStore) {
 		w.Write([]byte("Hello from Go server!"))
 	})
 
+	// Handler to find group JID by name
+	http.HandleFunc("/api/find-group", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parse request
+		var req struct {
+			GroupName string `json:"group_name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if req.GroupName == "" {
+			http.Error(w, "Group name is required", http.StatusBadRequest)
+			return
+		}
+
+		groups, err := client.GetJoinedGroups()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get groups: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		for _, group := range groups {
+			if strings.EqualFold(group.Name, req.GroupName) {
+				// Found the group
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": true,
+					"jid":     group.JID.String(),
+				})
+				return
+			}
+		}
+
+		// Group not found
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Group not found",
+		})
+	})
+
 	// Start the server
 	portEnv := os.Getenv("PORT")
 	if portEnv == "" {
